@@ -1,0 +1,15 @@
+# output gerado em runtime
+output/
+challenge.xlsx
+screenshot.png
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Docker
+.dockerignore

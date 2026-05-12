@@ -1,0 +1,41 @@
+services:
+
+  selenoid:
+    image: aerokube/selenoid:latest-release
+    volumes:
+      - ./config:/etc/selenoid
+      - /var/run/docker.sock:/var/run/docker.sock
+      - selenoid-video:/opt/selenoid/video
+    ports:
+      - "4444:4444"
+    command:
+      - "-conf"
+      - "/etc/selenoid/browsers.json"
+      - "-video-output-dir"
+      - "/opt/selenoid/video"
+    restart: unless-stopped
+
+  selenoid-ui:
+    image: aerokube/selenoid-ui:latest-release
+    depends_on:
+      - selenoid
+    ports:
+      - "8080:8080"
+    command:
+      - "--selenoid-uri"
+      - "http://selenoid:4444"
+    restart: unless-stopped
+
+  bot:
+    build: .
+    depends_on:
+      - selenoid
+    environment:
+      - SELENOID_URL=http://selenoid:4444/wd/hub
+      - OUTPUT_DIR=/app/output
+      - HEADLESS=false
+    volumes:
+      - ./output:/app/output
+
+volumes:
+  selenoid-video:
