@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import urllib.request
+import schedule
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -142,4 +143,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    log.info("Agendador iniciado — executando a cada 5 minutos")
+    main()  # roda imediatamente na primeira vez
+    schedule.every(5).minutes.do(main)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
