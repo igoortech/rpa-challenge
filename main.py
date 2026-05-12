@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import urllib.request
@@ -7,6 +8,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import openpyxl
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
 
 SELENOID_URL = os.environ.get("SELENOID_URL", "http://192.168.56.101:4444/wd/hub")
 HEADLESS = os.environ.get("HEADLESS", "false").lower() == "true"
@@ -27,6 +35,7 @@ FIELD_MAP = {
 
 
 def build_driver():
+    log.info("Conectando ao Selenoid em %s", SELENOID_URL)
     options = Options()
     if HEADLESS:
         options.add_argument("--headless=new")
@@ -37,10 +46,13 @@ def build_driver():
         "sessionTimeout": "5m",
         "enableVNC": not HEADLESS,
     })
-    return webdriver.Remote(command_executor=SELENOID_URL, options=options)
+    driver = webdriver.Remote(command_executor=SELENOID_URL, options=options)
+    log.info("Sessão iniciada com sucesso (id=%s)", driver.session_id)
+    return driver
 
 
 def download_excel(driver):
+    log.info("Baixando planilha Excel...")
     link = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.XPATH, "//a[contains(., 'Download Excel')]"))
     )
@@ -50,6 +62,7 @@ def download_excel(driver):
     with urllib.request.urlopen(req) as resp:
         with open(EXCEL_PATH, "wb") as f:
             f.write(resp.read())
+    log.info("Planilha salva em %s", EXCEL_PATH)
 
 
 def read_excel():
@@ -60,11 +73,11 @@ def read_excel():
     for row in ws.iter_rows(min_row=2, values_only=True):
         if any(v is not None for v in row):
             rows.append(dict(zip(headers, row)))
+    log.info("%d linhas de dados carregadas do Excel", len(rows))
     return rows
 
 
 def fill_field(driver, label_text, value):
-    # Locate input via its sibling/parent label text
     input_el = WebDriverWait(driver, 5).until(
         EC.presence_of_element_located((
             By.XPATH,
@@ -92,34 +105,40 @@ def submit_form(driver):
 
 
 def main():
+    log.info("=== RPA Challenge iniciando ===")
     driver = build_driver()
     try:
+        log.info("Acessando %s", SITE_URL)
         driver.get(SITE_URL)
 
-        # Download and read Excel before starting the timer
         download_excel(driver)
         data = read_excel()
 
-        # Start the challenge timer
+        log.info("Clicando em Start para iniciar o cronômetro")
         start_btn = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Start')]"))
         )
         start_btn.click()
 
-        for row in data:
+        for i, row in enumerate(data, start=1):
+            log.info("Round %d/%d — preenchendo formulário", i, len(data))
             fill_form(driver, row)
             submit_form(driver)
-            time.sleep(0.3)  # brief pause to let the DOM re-render between rounds
+            time.sleep(0.3)
 
-        # Wait for congratulations screen and take screenshot
+        log.info("Aguardando tela de congratulações...")
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".congratulations"))
         )
         driver.save_screenshot(SCREENSHOT_PATH)
-        print(f"Done! Screenshot saved to {SCREENSHOT_PATH}")
+        log.info("=== Concluído! Screenshot salvo em %s ===", SCREENSHOT_PATH)
 
+    except Exception as e:
+        log.error("Erro durante a execução: %s", e)
+        raise
     finally:
         driver.quit()
+        log.info("Sessão do browser encerrada")
 
 
 if __name__ == "__main__":
