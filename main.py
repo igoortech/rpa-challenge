@@ -18,7 +18,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 SELENOID_URL = os.environ.get("SELENOID_URL", "http://192.168.56.101:4444/wd/hub")
-HEADLESS = os.environ.get("HEADLESS", "false").lower() == "true"
+HEADLESS = os.environ.get("HEADLESS", "").lower() == "true"
 SITE_URL = "https://rpachallenge.com"
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", ".")
 EXCEL_PATH = os.path.join(OUTPUT_DIR, "challenge.xlsx")
